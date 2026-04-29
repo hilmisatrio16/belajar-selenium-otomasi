@@ -51,8 +51,11 @@ public class Main {
 
     public static int amountFolder = 0;
 
-    public static int index =0;
-    public static int size =0;
+    public static int index = 0;
+    public static int size = 0;
+
+    public static HashMap<String, Object> dataObject = new HashMap<>();
+    public static HashMap<String, String> dataTemp = new HashMap<>();
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
@@ -67,23 +70,48 @@ public class Main {
         clickElement("//div[contains(text(),'Lihat Produk Lainnya')]");
         wait_for_second(2000L);
         get_size_elements();
-        for (int i = 1; i<=size;i++){
-            String xpathCard =  "(//div[contains(@id,'target')]//following-sibling::div[contains(@class,'w-full')]//div[contains(@class,'grid items-stretch')]//div[contains(@class,'rounded-xl')])"+"["+i+"]";
+        for (int i = 1; i <= 2; i++) {
+            String xpathCard = "(//div[contains(@id,'target')]//following-sibling::div[contains(@class,'w-full')]//div[contains(@class,'grid items-stretch')]//div[contains(@class,'rounded-xl')])" + "[" + i + "]";
 //            TODO PAKAI ACUAN DARI XPATHCARD UNTUK GET XPATH TITLE AMBIL INDEXNYA DARI XPATH TITLE CTH (//div[contains(@id,'target')]//following-sibling::div[contains(@class,'w-full')]//div[contains(@class,'grid items-stretch')]//div[contains(@class,'rounded-xl')])"+"["+i+"]" //div[contains(@class,'text-base')];
 //            TODO CTH = (//div[contains(@class,'rounded-xl')])[1]//div[contains(@class,'text-base')]
-            String xpathTitle = "(//div[contains(@id,'target')]//following-sibling::div[contains(@class,'w-full')]//div[contains(@class,'grid items-stretch')]//div[contains(@class,'rounded-xl')]//div[contains(@class,'text-base')])["+i+"]";
+            String xpathTitle = "(//div[contains(@id,'target')]//following-sibling::div[contains(@class,'w-full')]//div[contains(@class,'grid items-stretch')]//div[contains(@class,'rounded-xl')]//div[contains(@class,'text-base')])[" + i + "]";
 
             scroll_to_element(xpathCard);
             wait_for_second(1000L);
             screenshot();
             String nameProduk = get_text(xpathTitle);
-            String xpathBtn = "//div[contains(@id,'target')]//following-sibling::div[contains(@class,'w-full')]//div[contains(@class,'grid items-stretch')]//div[contains(@class,'rounded-xl')]//div[contains(text(),'"+nameProduk+"')]/following-sibling::a";
+            String xpathBtn = "//div[contains(@id,'target')]//following-sibling::div[contains(@class,'w-full')]//div[contains(@class,'grid items-stretch')]//div[contains(@class,'rounded-xl')]//div[contains(text(),'" + nameProduk + "')]/following-sibling::a";
 
-            String btnExist = check_exist_element(xpathBtn);
+            String btnSelengkapnyaExist = check_exist_element(xpathBtn);
             String href = get_href(xpathBtn);
+            String btnKembaliExist = "NOT EXIST";
+            String nameProductDetails = "NOT EXIST";
+            String status = "NOT FOUND";
+            if (btnSelengkapnyaExist.equalsIgnoreCase("EXIST")) {
+                clickElement(xpathBtn);
+                status = check_status_browser();
+                wait_for_second(4000L);
+                switch_window("LAST");
+                btnKembaliExist = check_exist_element("//p[normalize-space()='Kembali ke Produk']/parent::a");
+                nameProductDetails = get_text("//a//following-sibling::h1");
+                switch_window("FIRST");
+            }
 
-            System.out.println(i+" | "+nameProduk+" | "+btnExist+" | "+ href);
+            dataTemp.put("NAMA PRODUK HALAMAN DEPAN", nameProduk);
+            dataTemp.put("BUTTON SELENGKAPNYA (EXIST/NOT EXIST)", btnSelengkapnyaExist);
+            dataTemp.put("URL", href);
+            dataTemp.put("BUTTON KEMBALI (EXIST/NOT EXIST)", btnKembaliExist);
+            dataTemp.put("NAMA PRODUK HALAMAN BELAKANG", nameProductDetails);
+            dataTemp.put("STATUS", status);
+
+            dataObject.put(String.valueOf(i), new HashMap<>(dataTemp));
+
+//            System.out.println(i + " | " + nameProduk + " | " + btnSelengkapnyaExist + " | " + href);
         }
+
+        System.out.println(dataObject);
+        compare_data("NAMA PRODUK HALAMAN DEPAN,NAMA PRODUK HALAMAN BELAKANG");
+        create_report();
 
 //        TODO KETIKA ADA YANG TIDAK MEMILIKI BTN A (NOT EXIST MAKA AKAN MENGAMBIL DARI INDEX BERIKUTYA) XPATHNYA HARUS DIBENARKAN
 //        ITEM PRODUK 1 TIDAK ADA BTN SELENGKAPNYA, TAPI KARENA MENGGUNAKAN INDEX MAKA AKAN MENGAMBIL DARI PRODUK 2 KARENA INDEX BTN SELENGKAPNYA ITU INDEX 1
@@ -97,8 +125,37 @@ public class Main {
     // //div[contains(@id,'target')]//following-sibling::div[contains(@class,'w-full')]//div[contains(@class,'grid items-stretch')]//div[contains(@class,'rounded-xl')]//div[contains(@class,'text-base')]
     // //div[contains(@id,'target')]//following-sibling::div[contains(@class,'w-full')]//div[contains(@class,'grid items-stretch')]//div[contains(@class,'rounded-xl')]//a -> btn href selengkapnya
 
+    //TODO SWITCH WINDOW
+    public static void switch_window(String index) {
+        Set<String> handles = driver.get().getWindowHandles();
+
+        // convert ke array/list biar bisa pakai index
+        String[] tabs = handles.toArray(new String[0]);
+
+        if (index.equalsIgnoreCase("FIRST")) {
+            driver.get().close();
+        }
+
+        // pindah ke tab kedua
+        driver.get().switchTo().window(tabs[index.equalsIgnoreCase("FIRST") ? 0 : 1]);
+
+
+    }
+
+    //TODO CHECK WINDOW (BLANK/404)
+    public static String check_status_browser() {
+        String title = driver.get().getTitle();
+        String status = "";
+        if (title.toLowerCase().contains("404") || title.toLowerCase().contains("not found")) {
+            status = "FAILED";
+        } else {
+            status = "PASSED";
+        }
+        return status;
+    }
+
     //TODO GET SIZE ELEMENT
-    public static void get_size_elements(){
+    public static void get_size_elements() {
         size = driver.get().findElements(By.xpath("//div[contains(@id,'target')]//following-sibling::div[contains(@class,'w-full')]//div[contains(@class,'grid items-stretch')]//div[contains(@class,'rounded-xl')]")).size();
     }
 
@@ -111,23 +168,28 @@ public class Main {
 
         Thread.sleep(1000);
     }
+
     //TODO GET TEXT ELEMENT BY INDEX
-    public static String get_text(String xpath){
-        return driver.get().findElement(By.xpath(xpath)).getText();
+    public static String get_text(String xpath) {
+        if (driver.get().findElements(By.xpath(xpath)).size() > 0) {
+            return driver.get().findElement(By.xpath(xpath)).getText();
+        } else {
+            return "NOT EXIST";
+        }
     }
 
     //TODO CHECK ELEMENT EXIST BY INDEX
-    public static String check_exist_element(String xpath){
-        if(driver.get().findElements(By.xpath(xpath)).size() > 0){
+    public static String check_exist_element(String xpath) {
+        if (driver.get().findElements(By.xpath(xpath)).size() > 0) {
             return "EXIST";
-        }else {
+        } else {
             return "NOT EXIST";
         }
     }
 
 
     //TODO GET HREF ELEMENT
-    public static String get_href(String xpath){
+    public static String get_href(String xpath) {
         try {
             WebDriverWait wait = new WebDriverWait(driver.get(), Duration.ofSeconds(5));
 
@@ -143,9 +205,93 @@ public class Main {
         }
     }
 
-    //TODO CREATE REPORT
-    public static void create_report(){
+    //TODO HEADER LIST
+    public static ArrayList<String> arrHeader = new ArrayList<String>(
+            Arrays.asList("NO", "NAMA PRODUK HALAMAN DEPAN", "NAMA PRODUK HALAMAN BELAKANG", "BUTTON SELENGKAPNYA (EXIST/NOT EXIST)", "BUTTON KEMBALI (EXIST/NOT EXIST)", "URL", "STATUS")
+    );
 
+    //TODO METHOD COMPARE (FUNGSINYA UNTUK PERINTAH FIELD MANA AJA YANG INGIN DICOMPARE, BASED ON HEADER)
+    //TODO FORMATNYA NAMA1,NAMA2;DLL
+    public static ArrayList<String> dataCompare = new ArrayList<>();
+
+    public static void compare_data(String str) {
+        String[] splitData = str.split(";");
+        dataCompare.addAll(Arrays.asList(splitData));
+    }
+
+    //TODO CREATE REPORT
+    public static void create_report() throws IOException {
+        String pathExcel = "E:\\TEST\\Report.xlsx";
+
+        Workbook wb = new XSSFWorkbook();
+        Sheet sheet = wb.createSheet("REPORT VERIFY");
+
+        CellStyle style = wb.createCellStyle();
+        style.setFillForegroundColor(IndexedColors.RED.getIndex());
+        style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+        Row rowHeader = sheet.createRow(0);
+
+        for (int i = 0; i < arrHeader.size(); i++) {
+            Cell cellID = rowHeader.createCell(i);
+            cellID.setCellValue(arrHeader.get(i));
+            cellID.setCellStyle(style);
+
+        }
+
+        for (int j = 1; j <= dataObject.size(); j++) {
+            HashMap<String, String> data = (HashMap<String, String>) dataObject.get(String.valueOf(j));
+
+            HashMap<String, String> resultCompare = new HashMap<>();
+            if (dataCompare.size() > 0) {
+                for (String val : dataCompare) {
+                    String[] split = val.split(",");
+                    String dataA = split[0];
+                    String dataB = split[1];
+                    if (data.get(dataA).equalsIgnoreCase(data.get(dataB))) {
+                        resultCompare.put(dataA, "MATCH");
+                        resultCompare.put(dataB, "MATCH");
+                    } else {
+                        resultCompare.put(dataA, "NOT MATCH");
+                        resultCompare.put(dataB, "NOT MATCH");
+                    }
+                }
+            }
+
+            //write number
+            Row rowValue = sheet.createRow(j);
+            rowValue.createCell(0).setCellValue(j);
+
+            CellStyle styleMatch = wb.createCellStyle();
+            styleMatch.setFillForegroundColor(IndexedColors.BRIGHT_GREEN.getIndex());
+            styleMatch.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+            CellStyle styleNotMatch = wb.createCellStyle();
+            styleNotMatch.setFillForegroundColor(IndexedColors.RED.getIndex());
+            styleNotMatch.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+            for (int k = 0; k < data.keySet().size(); k++) {
+                Cell cell = rowValue.createCell(k + 1);
+                cell.setCellValue(data.get(arrHeader.get(k + 1)));
+                if (resultCompare.containsKey(arrHeader.get(k+1))) {
+
+                    String status = resultCompare.get(arrHeader.get(k+1));
+
+                    if ("MATCH".equalsIgnoreCase(status)) {
+                        cell.setCellStyle(styleMatch);
+                    } else {
+                        cell.setCellStyle(styleNotMatch);
+                    }
+                }
+            }
+
+            resultCompare.clear();
+        }
+
+        FileOutputStream write = new FileOutputStream(pathExcel);
+        wb.write(write);
+        write.close();
+        wb.close();
     }
 
     public static void taruhFile(String path, String name) throws IOException {
@@ -157,7 +303,7 @@ public class Main {
         if (childs == null || childs.length == 0) {
             System.out.println("Child folder tidak ditemukan");
             //ketika childnya cuman satu maka pakai ini saja
-        }else if (childs.length>1){
+        } else if (childs.length > 1) {
             // ambil child terakhir
             File latestFolder = Arrays.stream(childs)
                     .min(Comparator.comparingLong(File::lastModified))
@@ -179,6 +325,7 @@ public class Main {
         element.click();
         wait_for_second(2000L);
     }
+
 
     private static void postTestCase() {
         Map<String, Object> testCasePayload = new HashMap<>();
