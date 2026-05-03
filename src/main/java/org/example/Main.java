@@ -11,6 +11,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -18,6 +19,8 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.file.Files;
 import java.text.DecimalFormat;
 import java.time.Duration;
@@ -62,9 +65,67 @@ public class Main {
         System.setProperty("webdriver.chrome.driver", "C:\\Users\\Lenovo\\Downloads\\chromedriver-win64 (2)\\chromedriver-win64\\chromedriver.exe");
         driver.set(new ChromeDriver());
         driver.get().manage().window().maximize();
-        driver.get().get("https://main.ocean.bca.co.id/visitor/product");
-        wait_for_second(5000L);
+        driver.get().get("https://ocean.bca.co.id/id/article");
         screenshot();
+        run_articles();
+    }
+
+    //CASE ARTIKEL
+    public static void run_articles() throws InterruptedException, IOException {
+        //        TODO KETIKA ADA YANG TIDAK MEMILIKI BTN A (NOT EXIST MAKA AKAN MENGAMBIL DARI INDEX BERIKUTYA) XPATHNYA HARUS DIBENARKAN
+        //        ITEM PRODUK 1 TIDAK ADA BTN SELENGKAPNYA, TAPI KARENA MENGGUNAKAN INDEX MAKA AKAN MENGAMBIL DARI PRODUK 2 KARENA INDEX BTN SELENGKAPNYA ITU INDEX 1
+        //        String baseUrl = driver.get().getCurrentUrl();
+        int indexArticle = 1;
+        for (int i = 1; i < 12; i++) {
+            get_size_elements();
+            for (int j = 1; j <= size; j++) {
+                String xpathCard = "(//div[@id='article-list']//a)[" + j + "]";
+                wait_element_exist(xpathCard);
+                scroll_to_element(xpathCard);
+                screenshot();
+                clickElement(xpathCard);
+                String title = "";
+                wait_for_second(1500L);
+                By popup = By.xpath("//span[normalize-space()='Aktivitas tidak dapat diproses']");
+                if (!(driver.get().findElements(popup).size() > 0)) {
+                    wait_until_gone("//lottie-player[@id='firstLottie']");
+                    wait_element_exist("//div/h1");
+                    screenshot();
+                    title = get_text("//div/h1");
+                    dataTemp.put("TITLE ARTIKEL", title);
+                }
+
+                driver.get().navigate().back();
+                driver.get().navigate().refresh();
+
+//                wait_element_exist("//a//span[contains(text(),'Kembali')]");
+//                clickElement("//a//span[contains(text(),'Kembali')]");
+
+                ////span[normalize-space()='Aktivitas tidak dapat diproses']
+                // MASALAH INI DITEMUKAN KETIKA LINKNYA BROKEN PADA DETAIL ARTIKEL, BUKAN KARENA KENA LIMIT!!
+                // BUAT PENCEGAHAN LINK BROKEN DAN GET STATUSNYA, KETIKA TAMPIL POP UP TERSEBUT MAKA AKAN LANGSUNG BACK, SUPAYA TIDAK KEREFRESH KE PAGE AWAL LAGI ATAU SIMPAN URL TERAKHIR UNTUK DI SET DRIVER SEHINGGA TIDAK KEMBALI KE HOME (TETAP DI LAST PAGE)
+
+//                driver.get().get(baseUrl+ "?page=" + i);
+                wait_for_second(500L);
+                screenshot();
+                dataObject.put(String.valueOf(indexArticle), new HashMap<>(dataTemp));
+                System.out.println(indexArticle + " | " + title);
+                indexArticle++;
+            }
+            wait_element_exist("//button[@aria-label='Next page' and not(@disabled)]");
+            scroll_to_element("//button[@aria-label='Next page' and not(@disabled)]");
+            clickElement("//button[@aria-label='Next page' and not(@disabled)]");
+            String getPage = get_text("//button[@aria-current]");
+            wait_for_second(1000L);
+            screenshot();
+            wait_until_gone("//lottie-player[@id='firstLottie']");
+            screenshot();
+            System.out.println("POSISI PAGE = " + getPage);
+        }
+    }
+
+    //CASE PRODUK
+    public static void run_product() throws InterruptedException, IOException {
         scroll_to_element("//div[contains(text(),'Lihat Produk Lainnya')]");
         wait_for_second(2000L);
         clickElement("//div[contains(text(),'Lihat Produk Lainnya')]");
@@ -112,10 +173,18 @@ public class Main {
         System.out.println(dataObject);
         compare_data("NAMA PRODUK HALAMAN DEPAN,NAMA PRODUK HALAMAN BELAKANG");
         create_report();
+    }
 
-//        TODO KETIKA ADA YANG TIDAK MEMILIKI BTN A (NOT EXIST MAKA AKAN MENGAMBIL DARI INDEX BERIKUTYA) XPATHNYA HARUS DIBENARKAN
-//        ITEM PRODUK 1 TIDAK ADA BTN SELENGKAPNYA, TAPI KARENA MENGGUNAKAN INDEX MAKA AKAN MENGAMBIL DARI PRODUK 2 KARENA INDEX BTN SELENGKAPNYA ITU INDEX 1
+    public static void wait_until_gone(String xpath) throws InterruptedException {
+        while (driver.get().findElements(By.xpath(xpath)).size() > 0) {
+            Thread.sleep(500L);
+        }
+    }
 
+    public static void wait_element_exist(String xpath) {
+        WebDriverWait wait = new WebDriverWait(driver.get(), Duration.ofSeconds(15));
+
+        WebElement element = wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath(xpath)));
     }
 
 
@@ -146,6 +215,7 @@ public class Main {
     public static String check_status_browser() {
         String title = driver.get().getTitle();
         String status = "";
+        // CASE 404 PERLU DICEK APAKAH DENGAN TITLE SAJA ATAU PERLU DI GET ELEMENT YANG ADA 404
         if (title.toLowerCase().contains("404") || title.toLowerCase().contains("not found")) {
             status = "FAILED";
         } else {
@@ -156,7 +226,8 @@ public class Main {
 
     //TODO GET SIZE ELEMENT
     public static void get_size_elements() {
-        size = driver.get().findElements(By.xpath("//div[contains(@id,'target')]//following-sibling::div[contains(@class,'w-full')]//div[contains(@class,'grid items-stretch')]//div[contains(@class,'rounded-xl')]")).size();
+//        size = driver.get().findElements(By.xpath("//div[contains(@id,'target')]//following-sibling::div[contains(@class,'w-full')]//div[contains(@class,'grid items-stretch')]//div[contains(@class,'rounded-xl')]")).size();
+        size = driver.get().findElements(By.xpath("//div[@id='article-list']//a")).size();
     }
 
     //TODO SCROLL TO ELEMENT BY INDEX
@@ -193,9 +264,7 @@ public class Main {
         try {
             WebDriverWait wait = new WebDriverWait(driver.get(), Duration.ofSeconds(5));
 
-            WebElement link = wait.until(
-                    ExpectedConditions.presenceOfElementLocated(By.xpath(xpath))
-            );
+            WebElement link = wait.until(ExpectedConditions.presenceOfElementLocated(By.xpath(xpath)));
 
             String href = link.getAttribute("href");
             return (href != null && !href.isEmpty()) ? href : "NOT FOUND";
@@ -206,9 +275,7 @@ public class Main {
     }
 
     //TODO HEADER LIST
-    public static ArrayList<String> arrHeader = new ArrayList<String>(
-            Arrays.asList("NO", "NAMA PRODUK HALAMAN DEPAN", "NAMA PRODUK HALAMAN BELAKANG", "BUTTON SELENGKAPNYA (EXIST/NOT EXIST)", "BUTTON KEMBALI (EXIST/NOT EXIST)", "URL", "STATUS")
-    );
+    public static ArrayList<String> arrHeader = new ArrayList<String>(Arrays.asList("NO", "NAMA PRODUK HALAMAN DEPAN", "NAMA PRODUK HALAMAN BELAKANG", "BUTTON SELENGKAPNYA (EXIST/NOT EXIST)", "BUTTON KEMBALI (EXIST/NOT EXIST)", "URL", "STATUS"));
 
     //TODO METHOD COMPARE (FUNGSINYA UNTUK PERINTAH FIELD MANA AJA YANG INGIN DICOMPARE, BASED ON HEADER)
     //TODO FORMATNYA NAMA1,NAMA2;DLL
@@ -273,9 +340,9 @@ public class Main {
             for (int k = 0; k < data.keySet().size(); k++) {
                 Cell cell = rowValue.createCell(k + 1);
                 cell.setCellValue(data.get(arrHeader.get(k + 1)));
-                if (resultCompare.containsKey(arrHeader.get(k+1))) {
+                if (resultCompare.containsKey(arrHeader.get(k + 1))) {
 
-                    String status = resultCompare.get(arrHeader.get(k+1));
+                    String status = resultCompare.get(arrHeader.get(k + 1));
 
                     if ("MATCH".equalsIgnoreCase(status)) {
                         cell.setCellStyle(styleMatch);
@@ -294,6 +361,26 @@ public class Main {
         wb.close();
     }
 
+    //TODO CHECK LINK
+    public static void verifyLink(String url) {
+        try {
+            URL link = new URL("https://qavalidation.com?page_id=5669123");
+            HttpURLConnection httpURLConnection = (HttpURLConnection) link.openConnection();
+            httpURLConnection.setInstanceFollowRedirects(false);
+            httpURLConnection.setConnectTimeout(3000); // Set connection timeout to 3 seconds
+            httpURLConnection.connect();
+
+
+            if (httpURLConnection.getResponseCode() == 200) {
+                System.out.println(url + " - " + httpURLConnection.getResponseMessage());
+            } else {
+                System.out.println(url + " - " + httpURLConnection.getResponseMessage() + " - " + "is a broken link");
+            }
+        } catch (Exception e) {
+            System.out.println(url + " - " + "is a broken link");
+        }
+    }
+
     public static void taruhFile(String path, String name) throws IOException {
 
         File parent = new File("E:\\ANIM\\F1");
@@ -305,9 +392,7 @@ public class Main {
             //ketika childnya cuman satu maka pakai ini saja
         } else if (childs.length > 1) {
             // ambil child terakhir
-            File latestFolder = Arrays.stream(childs)
-                    .min(Comparator.comparingLong(File::lastModified))
-                    .orElse(null);
+            File latestFolder = Arrays.stream(childs).min(Comparator.comparingLong(File::lastModified)).orElse(null);
 
             File source = new File(path);
 
@@ -331,14 +416,7 @@ public class Main {
         Map<String, Object> testCasePayload = new HashMap<>();
         testCasePayload.put("name", "Login Test Scenario");
 
-        Response response = given()
-                .contentType(ContentType.JSON)
-                .body(testCasePayload)
-                .when()
-                .post("http://127.0.0.1:5000/api/tests")
-                .then()
-                .statusCode(201)
-                .extract().response();
+        Response response = given().contentType(ContentType.JSON).body(testCasePayload).when().post("http://127.0.0.1:5000/api/tests").then().statusCode(201).extract().response();
 
 // Ambil ID dari response untuk digunakan saat upload screenshot
         int testId = response.path("id");
@@ -354,8 +432,8 @@ public class Main {
         String fileName = "E:/PROJECTS/screenshots/screenshot_" + currentTime + ".png";
 
         // Simpan ke local
-//        File dest = new File(fileName);
-//        FileUtils.copyFile(src, dest);
+        File dest = new File(fileName);
+        FileUtils.copyFile(src, dest);
 
 //        System.out.println(convertFileToBase64(dest));
         long startTime = System.currentTimeMillis();
@@ -636,10 +714,8 @@ public class Main {
                     df.applyPattern("#,###.00");
                     String kursBeliApi = df.format(kursBeliAPI.get().get(i));
                     String kursJualApi = df.format(kursJualAPI.get().get(i));
-                    String hasilBeli = kursBeliApi.equals(kursBeliWeb.get().get(j))
-                            ? "Accurate" : "Not Accurate";
-                    String hasilJual = kursJualApi.equals(kursJualWeb.get().get(j))
-                            ? "Accurate" : "Not Accurate";
+                    String hasilBeli = kursBeliApi.equals(kursBeliWeb.get().get(j)) ? "Accurate" : "Not Accurate";
+                    String hasilJual = kursJualApi.equals(kursJualWeb.get().get(j)) ? "Accurate" : "Not Accurate";
 
                     Row rowValue = sheet.createRow(i + 1);
                     rowValue.createCell(0).setCellValue(mataUangAPI.get().get(i));
