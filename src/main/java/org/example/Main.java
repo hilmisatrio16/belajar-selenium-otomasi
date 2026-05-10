@@ -2,6 +2,7 @@ package org.example;
 
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinDef;
+import io.github.bonigarcia.wdm.WebDriverManager;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
 import org.apache.commons.io.FileUtils;
@@ -12,6 +13,11 @@ import org.json.JSONObject;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.devtools.DevTools;
+
+//import org.openqa.selenium.devtools.v129.network.Network;
+import org.openqa.selenium.devtools.v133.network.Network;
+import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -62,13 +68,94 @@ public class Main {
 
     public static void main(String[] args) throws IOException, InterruptedException {
 
-        System.setProperty("webdriver.chrome.driver", "C:\\Users\\Lenovo\\Downloads\\chromedriver-win64 (2)\\chromedriver-win64\\chromedriver.exe");
+        System.setProperty("webdriver.chrome.driver", "C:\\Users\\Lenovo\\Downloads\\chromedriver-win64 (3)\\chromedriver-win64\\chromedriver.exe");
         driver.set(new ChromeDriver());
         driver.get().manage().window().maximize();
-        driver.get().get("https://ocean.bca.co.id/id/article");
-        screenshot();
-        run_articles();
+        driver.get().get("https://ocean.bca.co.id/id");
+////        screenshot();
+////        run_articles();
+
+        runMyEcosystem();
+
     }
+
+    private static void runMyEcosystem() throws InterruptedException, IOException {
+        // btn menu myEcoSystem = //button[text()='myEcosystem']
+        // title type myEcoSystem = //h2[text()='myEcosystem']//ancestor::div[contains(@class,'grid')]/div[.//span]//span
+        // url mitra = //h2[text()='myEcosystem']//ancestor::div[contains(@class,'grid')]/div[.//span]//a
+
+//        for (int i = 1; i <= 9;i++){
+//            hover_element("//button[text()='myEcosystem']");
+//            String titleMyEco = "(//h2[text()='myEcosystem']//ancestor::div[contains(@class,'grid')]/div[.//span]//span)["+i+"]";
+//            String getTitle = get_text(titleMyEco);
+//            int sizeMitra = Dr
+//        }
+        hover_element("//button[text()='myEcosystem']");
+        wait_for_second(2000L);
+        size = driver.get().findElements(By.xpath("//h2[text()='myEcosystem']//ancestor::div[contains(@class,'grid')]/div[.//span]//a")).size();
+        for (int i = 1; i <= size;i++){
+            hover_element("//button[text()='myEcosystem']");
+            wait_for_second(1000L);
+            String mitra = "(//h2[text()='myEcosystem']//ancestor::div[contains(@class,'grid')]/div[.//span]//a)["+i+"]";
+            String title = get_text(mitra);
+            String href = get_href(mitra);
+            clickElement(mitra);
+            wait_for_second(1500L);
+            switch_window("LAST");
+            screenshot();
+            switch_window("FIRST");
+            dataTemp.put("NAMA MITRA", title);
+            dataTemp.put("URL", href);
+            dataObject.put(String.valueOf(i), new HashMap<>(dataTemp));
+
+            dataTemp.clear();
+            System.out.println(dataObject);
+        }
+    }
+
+    //CASE QUICK ACCESS
+    private static void runQuickAccess() throws InterruptedException, IOException {
+        // btn quick access = //button[text()='Quick Access']
+        // btn type produk = //h2[text()='Quick Access']/parent::div/following-sibling::div/button
+        // btn produk =  //h2[text()='Quick Access']/ancestor::div[contains(@class,'grid')]/div[contains(@class,'col-span-11')]/button
+
+        for (int i = 1; i <= 4; i++){
+            hover_element("//button[text()='Quick Access']");
+            String btnTypeProdukBySize = "(//h2[text()='Quick Access']/parent::div/following-sibling::div/button)["+i+"]";
+            wait_for_second(1000L);
+            clickElement(btnTypeProdukBySize);
+            int sizeProduk = driver.get().findElements(By.xpath("//h2[text()='Quick Access']/ancestor::div[contains(@class,'grid')]/div[contains(@class,'col-span-11')]/button")).size();
+            for (int j = 1; j <= sizeProduk;j++){
+                hover_element("//button[text()='Quick Access']");
+                wait_for_second(1000L);
+                clickElement(btnTypeProdukBySize);
+                String btnProdukBySize = "(//h2[text()='Quick Access']/ancestor::div[contains(@class,'grid')]/div[contains(@class,'col-span-11')]/button//h3)["+j+"]";
+                String nameProduk = get_text(btnProdukBySize);
+                clickElement(btnProdukBySize);
+                wait_for_second(2000L);
+                switch_window("LAST");
+                screenshot();
+                switch_window("FIRST");
+                dataTemp.put("NAMA PRODUK", nameProduk);
+
+                size += 1;
+                dataObject.put(String.valueOf(size), new HashMap<>(dataTemp));
+
+                dataTemp.clear();
+                System.out.println(dataObject);
+            }
+        }
+    }
+
+    private static void hover_element(String xpath){
+        Actions actions = new Actions(driver.get());
+
+        // Hover over the element
+        actions.moveToElement(driver.get().findElement(By.xpath(xpath))).perform();
+    }
+
+
+
 
     //CASE ARTIKEL
     public static void run_articles() throws InterruptedException, IOException {
@@ -364,18 +451,25 @@ public class Main {
     //TODO CHECK LINK
     public static void verifyLink(String url) {
         try {
-            URL link = new URL("https://qavalidation.com?page_id=5669123");
-            HttpURLConnection httpURLConnection = (HttpURLConnection) link.openConnection();
-            httpURLConnection.setInstanceFollowRedirects(false);
-            httpURLConnection.setConnectTimeout(3000); // Set connection timeout to 3 seconds
-            httpURLConnection.connect();
+//            URL link = new URL("https://qavalidation.com?page_id=5669123");
+//            HttpURLConnection httpURLConnection = (HttpURLConnection) link.openConnection();
+//            httpURLConnection.setInstanceFollowRedirects(false);
+//            httpURLConnection.setConnectTimeout(3000); // Set connection timeout to 3 seconds-
+//            httpURLConnection.connect();
+//
+//
+//            if (httpURLConnection.getResponseCode() == 200) {
+//                System.out.println(url + " - " + httpURLConnection.getResponseMessage());
+//            } else {
+//                System.out.println(url + " - " + httpURLConnection.getResponseMessage() + " - " + "is a broken link");
+//            }
+            int statusCode =
+                    given()
+                            .when()
+                            .get("https://ocean.bca.co.id/id/produk/transaksi/api")
+                            .getStatusCode();
 
-
-            if (httpURLConnection.getResponseCode() == 200) {
-                System.out.println(url + " - " + httpURLConnection.getResponseMessage());
-            } else {
-                System.out.println(url + " - " + httpURLConnection.getResponseMessage() + " - " + "is a broken link");
-            }
+            System.out.println("Status Code: " + statusCode);
         } catch (Exception e) {
             System.out.println(url + " - " + "is a broken link");
         }
