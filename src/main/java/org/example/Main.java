@@ -76,6 +76,11 @@ public class Main {
 ////        run_articles();
 
         runMyEcosystem();
+        String title = driver.get().getTitle();
+        driver.get().manage().timeouts().implicitlyWait(Duration.ofSeconds(5));
+        if(driver.get().findElements(By.xpath("//h1[normalize-space()='Halaman yang Anda Cari Tidak Ditemukan']")).size() > 0 || driver.get().findElements(By.xpath("//span[normalize-space()='Aktivitas tidak dapat diproses']")).size() > 0 || title.toLowerCase().contains("404") || title.toLowerCase().contains("not found") ){
+
+        }
 
     }
 
@@ -295,7 +300,6 @@ public class Main {
         // pindah ke tab kedua
         driver.get().switchTo().window(tabs[index.equalsIgnoreCase("FIRST") ? 0 : 1]);
 
-
     }
 
     //TODO CHECK WINDOW (BLANK/404)
@@ -446,6 +450,88 @@ public class Main {
         wb.write(write);
         write.close();
         wb.close();
+    }
+
+    private static void insert_data_to_report_excel() throws IOException {
+        String pathExcel = "E:\\TEST\\Report.xlsx";
+        File file = new File(pathExcel);
+
+        Workbook workbook;
+        CellStyle style;
+        Sheet sheet;
+
+        if(file.exists()){
+            workbook = new XSSFWorkbook(Files.newInputStream(file.toPath()));
+            style = workbook.createCellStyle();
+            style.setFillForegroundColor(IndexedColors.RED.getIndex());
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+            // tentuin apakah nama sheet tersebut sudah tertera (pakai contain karena ada kemungkinan tidak lengkap karena max character di name sheetnya)
+
+            // jika sudah ada maka tidak perlu create header lagi
+
+            // jika data error maka skip row saja
+            sheet = findSheetContains(workbook,"REPORT VERIFY");
+            if (sheet == null){
+                sheet = workbook.createSheet("REPORT VERIFY");
+                Row rowHeader = sheet.createRow(0);
+
+                for (int i = 0; i < arrHeader.size(); i++) {
+                    Cell cellID = rowHeader.createCell(i);
+                    cellID.setCellValue(arrHeader.get(i));
+                    cellID.setCellStyle(style);
+                }
+            }
+
+        }else {
+            workbook = new XSSFWorkbook();
+
+            sheet = workbook.createSheet("REPORT VERIFY");
+        }
+
+        for (int j = 1; j <= dataObject.size(); j++) {
+            HashMap<String, String> data = (HashMap<String, String>) dataObject.get(String.valueOf(j));
+            Row rowValue = sheet.createRow(j);
+            rowValue.createCell(0).setCellValue(j);
+
+            CellStyle styleMatch = workbook.createCellStyle();
+            styleMatch.setFillForegroundColor(IndexedColors.BRIGHT_GREEN.getIndex());
+            styleMatch.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+            CellStyle styleNotMatch = workbook.createCellStyle();
+            styleNotMatch.setFillForegroundColor(IndexedColors.RED.getIndex());
+            styleNotMatch.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+
+            for (int k = 0; k < data.keySet().size(); k++) {
+                Cell cell = rowValue.createCell(k + 1);
+                cell.setCellValue(data.get(arrHeader.get(k + 1)));
+                cell.setCellStyle(styleNotMatch);
+            }
+        }
+
+        FileOutputStream fos = new FileOutputStream(file);
+        workbook.write(fos);
+        fos.close();
+        workbook.close();
+    }
+
+    public static Sheet findSheetContains(
+            Workbook workbook,
+            String keyword
+    ) {
+
+        for (int i = 0; i < workbook.getNumberOfSheets(); i++) {
+
+            String sheetName = workbook.getSheetName(i);
+
+            if (sheetName.toLowerCase()
+                    .contains(keyword.toLowerCase())) {
+
+                return workbook.getSheetAt(i);
+            }
+        }
+
+        return null;
     }
 
     //TODO CHECK LINK
